@@ -1,10 +1,11 @@
 from dataclasses import dataclass, asdict
-from typing import ClassVar, Dict, Type
+from typing import ClassVar
 
 
 @dataclass
 class InfoMessage:
     """Информационное сообщение о тренировке."""
+
     training_type: str
     duration: float
     distance: float
@@ -17,18 +18,21 @@ class InfoMessage:
                     'Потрачено ккал: {calories:.3f}.')
 
     def get_message(self) -> str:
+        """Вывод сообщения."""
         return self.message.format(**asdict(self))
 
 
-@dataclass
 class Training:
     """Базовый класс тренировки."""
+
     LEN_STEP: ClassVar[float] = 0.65  # Шаги в метрах
     M_IN_KM: ClassVar[float] = 1000.0  # перевод метров в километры
     M_IN_H: ClassVar[float] = 60.0  # перевод минут в часы
-    action: int
-    duration: float
-    weight: float
+
+    def __init__(self, action: int, duration: float, weight: float):
+        self.action = action
+        self.duration = duration
+        self.weight = weight
 
     def get_distance(self) -> float:
         """Получить дистанцию в км."""
@@ -52,9 +56,9 @@ class Training:
                            self.get_spent_calories())
 
 
-@dataclass
 class Running(Training):
     """Тренировка: бег."""
+
     CALORIES_MEAN_SPEED_MULTIPLIER: ClassVar[float] = 18
     CALORIES_MEAN_SPEED_SHIFT: ClassVar[float] = 1.79
 
@@ -65,37 +69,45 @@ class Running(Training):
                 / self.M_IN_KM * self.duration * self.M_IN_H)
 
 
-@dataclass
 class SportsWalking(Training):
     """Тренировка: спортивная ходьба."""
-    COEF_1: ClassVar[float] = 0.035
-    COEF_2: ClassVar[float] = 0.029
+
+    CALORIES_MEAN_SPEED: ClassVar[float] = 0.035
+    CALORIES_WEIGHT_MULTIPLIER: ClassVar[float] = 0.029
     KMH_TO_MS: ClassVar[float] = 0.278
     H_TO_M: ClassVar[float] = 100.0
-    action: int
-    duration: float
-    weight: float
-    height: float
+
+    def __init__(self, action: int,
+                 duration: float,
+                 weight: float,
+                 height: float):
+        super().__init__(action, duration, weight)
+        self.height = height
 
     def get_spent_calories(self) -> float:
-        return (((self.COEF_1 * self.weight
+        """Получить количество затраченных калорий."""
+        return (((self.CALORIES_MEAN_SPEED * self.weight
                   + (((self.get_mean_speed() * self.KMH_TO_MS) ** 2)
                      / (self.height / self.H_TO_M))
-                  * self.COEF_2 * self.weight))
+                  * self.CALORIES_WEIGHT_MULTIPLIER * self.weight))
                 * self.M_IN_H * self.duration)
 
 
-@dataclass
 class Swimming(Training):
     """Тренировка: плавание."""
+
     LEN_STEP: ClassVar[float] = 1.38
     CALORIES_MEAN_SPEED: ClassVar[float] = 1.1
     CALORIES_WEIGHT_MULTIPLIER: ClassVar[float] = 2.0
-    action: int
-    duration: float
-    weight: float
-    length_pool: float
-    count_pool: float
+
+    def __init__(self, action: int,
+                 duration: float,
+                 weight: float,
+                 length_pool: float,
+                 count_pool: float):
+        super().__init__(action, duration, weight)
+        self.length_pool = length_pool
+        self.count_pool = count_pool
 
     def get_mean_speed(self) -> float:
         """Получить среднюю скорость движения при плавании."""
@@ -111,13 +123,14 @@ class Swimming(Training):
 
 def read_package(workout_type: str, data: list) -> Training:
     """Прочитать данные полученные от датчиков."""
-    workout: Dict[str, Type[Training]] = {'SWM': Swimming,
+    workout: dict[str, type[Training]] = {'SWM': Swimming,
                                           'RUN': Running,
                                           'WLK': SportsWalking}
 
     if workout_type in workout:
         return workout[workout_type](*data)
-    raise ValueError(f'Тренировки - {workout_type}, не предусмотрено.')
+    raise ValueError(f'Тренировки - {workout_type}, не предусмотрено'
+                     f' в трекере.')
 
 
 def main(training: Training) -> None:
